@@ -1,5 +1,53 @@
 import labelbox as lb
 import os
+import json
+import pandas as pd
+
+# Convert json to dataframe
+def normalize_json(file_path, project_id):
+    """
+    Takes raw output from LabelBox API, gathers the key, tweet content, and human labeled
+    frames. Stores and saves this information into a .csv file
+
+    Parameters:
+    - file_path (string): Path to the name of the JSON file containing the raw output
+        from the extract_and_save_labels function.
+    - project_id (string): Project ID for the project being worked with. Required to access
+        information in JSON file.
+    """
+    # Parse through file to get necessary information (key, post, human frames)
+    df_data = {
+        "global_key" : [],
+        "row_data" : [],
+        "label" : []
+    }
+
+    with open(file_path, 'r', encoding="utf-8") as f:
+        for dict in (json.load(f))["data"]:
+            df_data["global_key"].append(dict["data_row"]["global_key"])
+            df_data["row_data"].append(dict["data_row"]["row_data"])
+
+            human_frames = []
+            # Account for consensus-labeled frames
+            for annotation in dict["projects"][project_id]["labels"]:
+                if len(annotation["annotations"]["classifications"]):
+                    # As per labeling instructions, multiple frames labeled by an individual should be separated by a new line character
+                    if len(annotation["annotations"]["classifications"][0]["text_answer"]["content"]):
+                        for frame in annotation["annotations"]["classifications"][0]["text_answer"]["content"].split('\n'):
+                            human_frames.append(frame)
+
+        
+
+            df_data["label"].append(human_frames)
+
+    # Combine into dataframe
+    df = pd.DataFrame(df_data)
+
+    # Save df as csv
+    print("Saving dataframe...")
+    df.to_csv(file_path[:-5] + '_modified.csv', index=False)
+
+
 
 def extract_and_save_labels(output_dir,
                             extraction_projectID,
@@ -46,15 +94,29 @@ def extract_and_save_labels(output_dir,
             f"path: {output.file_path.absolute().resolve()}"
         )
 
-
     # Save json file to specified output directory
     if export_task.has_result():
         export_task.get_stream(
             converter=lb.FileConverter(file_path=output_dir)
         ).start(stream_handler=file_stream_handler)
-    
-    print("Data successfully loaded")
 
+    # For some reason, the file_stream does not follow .json format
+    # Wrap the text file in another dictionary
+
+    with open(output_dir, 'r', encoding="utf-8") as f:
+        dicts = []
+        for line in f:
+            dicts.append(json.loads(line))
+
+        data_dict = {"data":dicts}
+    
+    # Save new dictionary
+    with open(output_dir, "w") as f:
+        json.dump(data_dict, f)
+
+    normalize_json(output_dir, extraction_projectID)
+
+    print("Data successfully loaded")
 
     
 
