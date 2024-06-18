@@ -56,16 +56,6 @@ def full_pipeline(output_dir,
         
     if append_LLM_labels:
         print("Append AI Labels")
-        sys.path.append(r'C:\Users\coope\InternshipCode\social_media_frame_analysis')
-
-        directory = 'C:\\Users\\coope\\InternshipCode\\human_preference\\data'
-
-        # Check current permissions
-        permissions = os.stat(directory).st_mode
-        print(oct(permissions))
-
-        # Change permissions
-        os.chmod(directory, permissions | stat.S_IRWXU)
 
         from frame_extraction.extract_frames import process_and_save_posts
         process_and_save_posts(input_path,
