@@ -3,10 +3,11 @@ import os
 import json
 import pandas as pd
 import re
+from ast import literal_eval
 from random import randint
 
 # Convert json to dataframe
-def normalize_json(file_path, project_id):
+def normalize_frame_json(file_path, project_id):
     """
     Takes raw output from LabelBox API, gathers the key, tweet content, and human labeled
     frames. Stores and saves this information into a .csv file
@@ -65,12 +66,65 @@ def normalize_json(file_path, project_id):
     print("Saving dataframe...")
     df.to_csv(file_path[:-5] + '_modified.csv', index=False)
 
+# clxj6qjo600xr07zs5o7varta
+def normalize_preference_json(file_path, project_id):
+
+    df_data = {
+        "global_key": [],
+        "post": [],
+        "LLM_extraction": [],
+        "human_extraction": [],
+        "LLM_votes": [],
+        "human_votes": []
+    }
+
+    with open(file_path, 'r', encoding="utf-8") as f:
+        for dictionary in (json.load(f))["data"]:
+
+            df_data["global_key"].append(dictionary["data_row"]["global_key"])
+            data = json.loads(dictionary["data_row"]["row_data"])
+            df_data["post"].append(data["messages"][0]["content"])
+
+            # Find LLM and human frames
+
+            for output in data["modelOutputs"]:
+                if output["modelConfigName"] == "ChatGPT4o":
+                    # temporary identifier for llm_response
+                    llm_identifier = 'a' if "A" in output['title'] else "b"
+                    df_data["LLM_extraction"].append(output["content"])
+                else:
+                    df_data["human_extraction"].append(output["content"])
+
+            # Loop through labels
+            labels = dictionary["projects"][project_id]["labels"]
+
+            for label in labels:
+                pref_h = 0
+                pref_llm = 0
+                for classification in label["annotations"]["classifications"]:
+                    preference = classification["radio_answer"]["value"]
+                    
+                    # If label matches llm_identifier, add 1 'vote' to llm_preference
+                    if preference == llm_identifier:
+                        pref_llm += 1
+                    else:
+                        pref_h += 1
+                    
+                df_data["LLM_votes"].append(pref_llm)
+                df_data["human_votes"].append(pref_h)
+
+    # Combine into dataframe
+    df = pd.DataFrame(df_data)
+
+    print("Saving dataframe...")
+    df.to_csv(file_path[:-5] + '_modified.csv', index=False)
 
 
 def extract_and_save_labels(output_dir,
                             extraction_projectID,
                             api_key_loc,
-                            export_params):
+                            export_params,
+                            data='f'):
     
     print(output_dir)
 
@@ -131,8 +185,11 @@ def extract_and_save_labels(output_dir,
     # Save new dictionary
     with open(output_dir, "w") as f:
         json.dump(data_dict, f)
-
-    normalize_json(output_dir, extraction_projectID)
+    
+    if data == 'f':
+        normalize_frame_json(output_dir, extraction_projectID)
+    if data == 'p':
+        normalize_preference_json(output_dir, extraction_projectID)
 
     print("Data successfully loaded")
 

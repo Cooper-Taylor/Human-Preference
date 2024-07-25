@@ -12,8 +12,10 @@ def parse_args():
     parser.add_argument("extraction_projectID", help="ProjectID to access and extract information.")
     parser.add_argument("--labelbox_api_key_loc", default=os.path.expanduser('~/.apikeys/labelbox_api_key.txt'), help="Location of text file containing LabelBox API key.")
     
+    
     parser.add_argument("--extract_data", action='store_true')
     parser.add_argument("--export_parameters", default="attachments;metadata_fields;data_row_details;project_details;label_details;project_ids", help="Semicolon-separated list of labelbox export parameters.")
+    parser.add_argument("--data_type", default='f', help="Type of data to be downloaded from LabelBox. 'f' for human-labeled frames, 'p' for human preference")
 
     parser.add_argument("--append_LLM_labels", action='store_true')
 
@@ -35,6 +37,7 @@ def full_pipeline(output_dir,
                   labelbox_api_key_loc,
                   extract_data,
                   export_parameters,
+                  data_type,
                   append_LLM_labels,
                   input_path,
                   results_dir,
@@ -52,7 +55,8 @@ def full_pipeline(output_dir,
         extract_and_save_labels(output_dir,
                             extraction_projectID,
                             labelbox_api_key_loc,
-                            export_parameters)
+                            export_parameters,
+                            data=data_type)
         
     if append_LLM_labels:
         print("Append AI Labels")
@@ -80,6 +84,7 @@ if __name__ == "__main__":
                 args.labelbox_api_key_loc,
                 args.extract_data,
                 args.export_parameters,
+                args.data_type,
                 args.append_LLM_labels,
                 args.input_path,
                 args.results_dir,
